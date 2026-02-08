@@ -24,9 +24,7 @@ This project implements a hybrid AI-based Intrusion Detection System (IDS) that 
 
 \- NSL-KDD (baseline intrusion detection dataset)
 
-\- CICIDS2017 (Not included due to size)
-
-Download CICIDS2017 from: https://www.unb.ca/cic/datasets/ids-2017.html
+\- CICIDS2017 (to be integrated for modern attack patterns)
 
 
 

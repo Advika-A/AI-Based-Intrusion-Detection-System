@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Explainable AI – Intrusion Detection</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            padding: 40px;
+        }
+
+        .card {
+            max-width: 650px;
+            margin: 20px auto;
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        button:hover { background: #1e40af; }
+
+        .status {
+            font-size: 22px;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+
+        .green { color: #16a34a; }
+        .yellow { color: #ca8a04; }
+        .red { color: #dc2626; }
+
+        ul { margin-top: 10px; }
+
+        .action, .agreement {
+            margin-top: 15px;
+            font-weight: bold;
+        }
+
+        .confidence {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .error { color: #dc2626; margin-top: 15px; font-weight: bold; }
+
+        .feature-bar {
+            height: 12px;
+            background: #2563eb;
+            border-radius: 6px;
+            margin: 4px 0 10px 0;
+        }
+
+        .model-title { font-size: 18px; margin-top: 10px; font-weight: bold; }
+    </style>
+</head>
+
+<body>
+
+<div class="card">
+    <h2>🔐 AI Intrusion Detection System</h2>
+    <p>This system analyzes network traffic and explains its decision in simple language.</p>
+
+    <button onclick="detect()">Detect Sample Traffic</button>
+
+    <div id="result"></div>
+</div>
+
+<script>
+async function detect() {
+    const resultDiv = document.getElementById("result");
+    resultDiv.innerHTML = "<p>🔍 Analyzing network traffic...</p>";
+
+    try {
+        const response = await fetch("/predict", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                "Average Packet Size": 500,
+                "Max Packet Length": 1500,
+                "Packet Length Mean": 700,
+                "Bwd Packet Length Max": 1400,
+                "Bwd Packet Length Std": 200,
+                "Avg Bwd Segment Size": 600,
+                "Fwd Packet Length Mean": 650,
+                "Min Packet Length": 40,
+                "Destination Port": 80,
+                "Init_Win_bytes_backward": 1000,
+                "Flow Duration": 10000,
+                "Total Fwd Packets": 20
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+            resultDiv.innerHTML = `<div class="error">❌ ${data.error}</div>`;
+            return;
+        }
+
+        // ---------- Determine color/icon based on final verdict ----------
+        let color = "green";
+        let icon = "🟢";
+
+        const verdict = data.final_decision;
+        if (verdict === "Suspicious") { color = "yellow"; icon = "🟡"; }
+        if (verdict === "Attack") { color = "red"; icon = "🔴"; }
+
+        // ---------- Model Cards ----------
+        function renderModelCard(title, modelData) {
+            let featuresHTML = "";
+            modelData.top_features.forEach(f => {
+                const width = f.deviation * 100;
+                featuresHTML += `<div>${f.feature}: ${f.value}</div>
+                                 <div class="feature-bar" style="width:${width}%"></div>`;
+            });
+            return `
+                <div class="card">
+                    <div class="model-title">${title}</div>
+                    <p>Decision: ${modelData.label}</p>
+                    ${modelData.confidence ? `<p>Confidence: ${(modelData.confidence*100).toFixed(1)}%</p>` : ""}
+                    ${featuresHTML}
+                </div>
+            `;
+        }
+
+        // ---------- Feature Explanations ----------
+        let explanationHTML = "<ul>";
+        data.feature_explanations.forEach(e => {
+            explanationHTML += `<li>${e}</li>`;
+        });
+        explanationHTML += "</ul>";
+
+        // ---------- Agreement Status ----------
+        const agreementHTML = `<div class="agreement">Model Agreement: ${data.agreement_status}</div>`;
+
+        // ---------- Confidence ----------
+        const confidenceHTML = `<div class="confidence">Overall Confidence: ${(data.confidence*100).toFixed(1)}%</div>`;
+
+        // ---------- Recommended Action ----------
+        const actionHTML = `<div class="action">Recommended Action: ${data.recommended_action}</div>`;
+
+        // ---------- Combine all HTML ----------
+        resultDiv.innerHTML = `
+            <div class="status ${color}">${icon} ${verdict} Traffic</div>
+            ${agreementHTML}
+            ${renderModelCard("Supervised Random Forest", data.rf_decision)}
+            ${renderModelCard("Unsupervised Isolation Forest", data.if_decision)}
+            <div class="card">
+                <div class="model-title">Feature-Level Explanations</div>
+                ${explanationHTML}
+            </div>
+            ${confidenceHTML}
+            ${actionHTML}
+        `;
+
+    } catch (err) {
+        resultDiv.innerHTML = `
+            <div class="error">
+                ❌ Unable to contact detection engine.<br>
+                Please ensure the server is running.
+            </div>
+        `;
+    }
+}
+</script>
+
+</body>
+</html>
